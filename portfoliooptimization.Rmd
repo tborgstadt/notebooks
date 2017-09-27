@@ -1,0 +1,99 @@
+---
+title: "Portfolio Optimization"
+author: "Tom Borgstadt"
+date: "September 7, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+```{r}
+library(xts)
+library(quantmod)
+library(lpSolve)
+
+symbols <- c('IVV', 'IJR', 'IWM', 'AGG', 'RWR', 'TLH')
+
+startDate <- "2015-01-01"
+endDate <- "2016-08-31"
+
+symbol_list = lapply(symbols, function(sym) {
+  monthlyReturn(na.omit(getSymbols(sym, src='yahoo', from=startDate, to=endDate, auto.assign=FALSE)))
+})
+
+returns <- do.call(merge, symbol_list)
+
+n_assets <- length(symbol_list)
+
+for (i in 1:length(names(returns))){
+  names(returns)[names(returns) == names(returns)[i]] = symbols[i]
+}
+
+```
+
+```{r}
+
+cor(returns, use="all.obs", method="pearson" )
+
+returns_df <- data.frame(returns)
+library(corrgram)
+corrgram(returns_df, order=TRUE, lower.panel=panel.shade,
+  upper.panel=panel.pie, text.panel=panel.txt,
+  main="Asset Correlation")
+```
+
+
+
+```{r}
+rand_weights <- function(n){
+  k <- sample(1:100, n, replace = FALSE, prob = NULL)
+  z = k/sum(k)
+  return(z)
+}
+
+```
+
+    mu = w * p.T                            # Portfolio expected return (ER)
+    sigma = np.sqrt(w * C * w.T)            # Portfolio risk (SD)
+
+
+```{r}
+p <- as.matrix(colMeans(returns_df))
+w <- t(as.matrix(rand_weights(n_assets)))
+C <- as.matrix(cov(returns_df))
+
+mu <- w %*% p
+
+sigma <- sqrt(w %*% C %*% t(w))
+
+```
+
+```{r}
+expected_returns <- function(rets){
+
+  p <- as.matrix(colMeans(rets))         # expected return
+  w <- t(as.matrix(rand_weights(n_assets)))    # weights
+  C <- as.matrix(cov(rets))              # covariance
+  
+  mu <- w %*% p
+
+  sigma <- sqrt(w %*% C %*% t(w))
+  
+  # R will not allow return of more than 1 object, so we'll need to pack and unpack
+  return_list <- list("mu" = mu, "sigma" = sigma)
+  return(return_list)
+}
+
+```
+
+```{r}
+
+result <- expected_returns(returns_df)
+print(result$mu)
+print(result$sigma)
+
+```
+
